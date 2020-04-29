@@ -1,0 +1,106 @@
+module ipod_fsm(clock,reset,mem_read,aud_clk_22khz,read_data,state,byteenable,read_data_request,address_check,audio_finish,aud_data_out);
+
+input clock, reset, mem_read,aud_clk_22khz;
+input[31:0] read_data;
+//wire direction; // remove this
+//output address;
+
+//assign direction = 1'b0;
+
+output [6:0] state;
+reg [6:0] state;
+output [3:0] byteenable;
+output read_data_request, address_check, audio_finish;
+output reg [7:0] aud_data_out;
+
+assign read_data_request = state[0];
+assign address_check = state[1];
+assign audio_finish = state[2];
+
+assign byteenable = 4'b1111;
+
+parameter idle_state = 7'b0000_000;
+parameter read_state = 7'b0001_001;
+parameter address_state = 7'b0010_010;
+parameter data_left_prep = 7'b0011_000;
+parameter data_right_prep = 7'b0100_000;
+parameter data_left_get = 7'b0101_000; 
+parameter data_right_get = 7'b0110_000;
+parameter finished = 7'b1111_100;
+
+//address states
+/*
+parameter address_dir_check = 7'b0111_00;
+parameter address_inc = 7'b1000_00;
+parameter address_dec = 7'b1001_00;
+
+*/
+parameter clock_wait1 = 7'b1010_00;
+parameter clock_wait2 = 7'b1011_00;
+
+always @(posedge clock)
+begin
+		case(state)
+			idle_state:
+				if (mem_read) begin
+				state <= read_state;
+				end
+				
+			read_state:state <= address_state;
+			
+			address_state: state <= data_left_prep;
+			
+			data_left_prep: if(aud_clk_22khz)
+			state <= data_left_get;
+			
+			data_left_get: begin
+			aud_data_out <= read_data[15:8];
+			state <= clock_wait1;
+			end
+			
+			clock_wait1: state <= data_right_prep;
+			
+			data_right_prep: if(aud_clk_22khz)
+			state <= data_right_get;
+			
+			data_right_get: begin
+			aud_data_out <= read_data [31:24];
+			state <= clock_wait2;
+			end
+			
+			clock_wait2: state<= finished;//address_dir_check;
+			
+			/*address_dir_check: 
+			begin
+			if(direction)
+			state <= address_dec;
+			else
+			state <= address_inc;
+			end
+			
+			address_dec:
+			begin
+			if (address < 23'd0)
+				address <= 23'd0;
+			else 
+				address <= address - 23'd1;
+			state <= finished;
+			end
+			
+			address_inc:
+			begin
+			if (address > 23'h7FFFF)
+				address <= 23'd0;
+			else
+				address <= address - 23'd0;
+			state <= finished;
+			end*/
+			
+			finished: state<= idle_state;
+			default: state<= idle_state;
+		
+	endcase
+end
+
+endmodule
+

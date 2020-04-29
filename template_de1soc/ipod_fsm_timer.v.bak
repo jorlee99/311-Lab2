@@ -1,0 +1,58 @@
+module ipod_fsm_timer(clk,reset,start,wait_request,read_valid,read_request,timing_finish);
+
+input clk,reset,start;
+wire [4:0] state;
+input wait_request,read_valid,read_request;
+
+output timing_finish;
+
+parameter idle_state = 5'b000_00;
+parameter read_check = 5'b001_00;
+parameter wait_state = 5'b010_00;
+parameter read_state = 5'b011_00;
+parameter finished_state = 5'b111_01;
+
+assign timing_finish = state[0];
+
+always @ (posedge clk)
+begin
+
+if(reset)
+	state<= idle_state;
+	
+else
+case(state)
+	idle_state: begin
+		if (start)
+			state <= read_check;
+		end
+	read_check:begin
+		if (read_request)
+			state <= wait_state;
+		else
+			state <= idle_state;
+		end
+	wait_state:begin
+		if (wait_request)
+			state <= wait_state;
+		else 
+			state <= read_state;
+		end
+	read_state:begin
+		if (read_valid)
+			state <= read_state;
+		else
+			state <= finished_state;
+		end
+	finished_state:begin
+		if (read_request)
+			state <= read_check;
+		else
+			state <= idle_state;
+		end
+
+	default: state <= idle_state;
+endcase
+end
+
+endmodule
